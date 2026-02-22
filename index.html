@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mission Control</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <div class="title">Mission Control</div>
+        <div class="subtitle">Projetos • Missões • Agentes</div>
+      </div>
+    </div>
+
+    <div class="search">
+      <input id="globalSearch" type="search" placeholder="Buscar (projeto, missão, task, agente, tag...)" autocomplete="off" />
+      <select id="projectFilter" aria-label="Filtro de projeto"></select>
+      <select id="statusFilter" aria-label="Filtro de status">
+        <option value="">Todos status</option>
+        <option value="Backlog">Backlog</option>
+        <option value="Doing">Doing</option>
+        <option value="Review">Review</option>
+        <option value="Done">Done</option>
+        <option value="Blocked">Blocked</option>
+        <option value="Needs Approval">Needs Approval</option>
+        <option value="Needs Info">Needs Info</option>
+      </select>
+      <button id="newMissionBtn" class="btn primary">+ Nova missão</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="panel kanban" aria-label="Kanban de missões">
+      <div class="panel-h">
+        <h2>Kanban</h2>
+        <div class="muted">Arraste missões entre colunas • clique para detalhes</div>
+      </div>
+      <div id="kanban" class="kanban-grid"></div>
+    </section>
+
+    <aside class="right">
+      <section class="panel agents" aria-label="Painel de agentes">
+        <div class="panel-h">
+          <h2>Agentes</h2>
+          <div class="muted" id="agentSummary">—</div>
+        </div>
+        <div id="agents" class="agents-list"></div>
+      </section>
+
+      <section class="panel feed" aria-label="Feed de eventos">
+        <div class="panel-h">
+          <h2>Eventos (audit)</h2>
+          <div class="muted">tempo real (local)</div>
+        </div>
+        <div id="feed" class="feed-list"></div>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="missionDialog" class="dialog">
+    <form method="dialog" class="dialog-body">
+      <div class="dialog-h">
+        <div>
+          <div class="kicker" id="dlgProject">Projeto</div>
+          <h3 id="dlgTitle">Missão</h3>
+          <div class="meta" id="dlgMeta">—</div>
+        </div>
+        <button class="icon-btn" value="cancel" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="dialog-grid">
+        <section>
+          <h4>Objetivo</h4>
+          <p id="dlgObjective" class="mono">—</p>
+
+          <h4>Checklist (missão)</h4>
+          <div id="dlgChecklist" class="checklist"></div>
+
+          <h4>Tasks</h4>
+          <div class="task-actions">
+            <button id="addTaskBtn" class="btn" type="button">+ Nova task</button>
+          </div>
+          <div id="dlgTasks" class="tasks"></div>
+
+          <h4>Artefatos</h4>
+          <div id="dlgArtifacts" class="artifacts"></div>
+        </section>
+
+        <section>
+          <h4>Status & controle</h4>
+          <div class="kv">
+            <div><span class="k">Status</span><span id="dlgStatus" class="v badge">—</span></div>
+            <div><span class="k">Risco</span><span id="dlgRisk" class="v">—</span></div>
+            <div><span class="k">Custo (estim.)</span><span id="dlgCost" class="v">—</span></div>
+          </div>
+
+          <h4>Aprovações</h4>
+          <div id="dlgApprovals" class="approvals"></div>
+          <div class="approval-actions">
+            <button id="okExecutarBtn" class="btn danger" type="button">OK EXECUTAR</button>
+            <button id="addApprovalBtn" class="btn" type="button">+ Pedir aprovação</button>
+          </div>
+
+          <h4>Links</h4>
+          <div id="dlgLinks" class="links"></div>
+
+          <h4>Logs da missão</h4>
+          <div id="dlgLogs" class="mini-feed"></div>
+        </section>
+      </div>
+
+      <div class="dialog-f">
+        <button value="cancel" class="btn">Fechar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="newMissionDialog" class="dialog">
+    <form id="newMissionForm" class="dialog-body">
+      <div class="dialog-h">
+        <div>
+          <div class="kicker">Criar</div>
+          <h3>Nova missão</h3>
+          <div class="meta">MVP local (salva no seu navegador via LocalStorage)</div>
+        </div>
+        <button class="icon-btn" value="cancel" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          <span>Projeto</span>
+          <select id="nmProject"></select>
+        </label>
+        <label>
+          <span>Título</span>
+          <input id="nmTitle" required placeholder="Ex.: Landing page + pricing" />
+        </label>
+        <label class="full">
+          <span>Objetivo</span>
+          <textarea id="nmObjective" rows="3" placeholder="O que significa 'Done'?" ></textarea>
+        </label>
+        <label>
+          <span>Status</span>
+          <select id="nmStatus">
+            <option>Backlog</option>
+            <option>Doing</option>
+            <option>Review</option>
+            <option>Done</option>
+            <option>Blocked</option>
+            <option>Needs Approval</option>
+            <option>Needs Info</option>
+          </select>
+        </label>
+        <label>
+          <span>Risco</span>
+          <select id="nmRisk">
+            <option value="low">Baixo</option>
+            <option value="medium">Médio</option>
+            <option value="high">Alto</option>
+          </select>
+        </label>
+        <label>
+          <span>Custo estimado (USD)</span>
+          <input id="nmCost" type="number" min="0" step="0.01" placeholder="0.30" />
+        </label>
+      </div>
+
+      <div class="dialog-f">
+        <button class="btn" type="button" id="nmCancel">Cancelar</button>
+        <button class="btn primary" type="submit">Criar missão</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="footer">
+    <div class="muted">MVP estático • Próximo passo: backend + multi-sessões + approvals reais</div>
+  </footer>
+
+  <script src="./app.js"></script>
+</body>
+</html>
