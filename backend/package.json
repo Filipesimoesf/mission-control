@@ -1,0 +1,17 @@
+{
+  "name": "mission-control-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.1.0",
+    "@fastify/helmet": "^13.0.0",
+    "better-sqlite3": "^11.8.1",
+    "fastify": "^5.2.1",
+    "zod": "^3.24.2"
+  }
+}
