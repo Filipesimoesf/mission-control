@@ -1,9 +1,41 @@
-/* Mission Control MVP
-   - purely static + LocalStorage persistence
-   - no backend yet
+/* Mission Control
+   - Static UI + optional backend connection
+   - If backend configured, data is loaded/saved via API.
+   - Otherwise falls back to LocalStorage seed.
 */
 
 const STORAGE_KEY = 'mission-control.mvp.v1';
+const BACKEND_KEY = 'mission-control.backend.v1';
+
+function loadBackend(){
+  try{ return JSON.parse(localStorage.getItem(BACKEND_KEY) || 'null'); }catch{ return null; }
+}
+function saveBackend(cfg){
+  localStorage.setItem(BACKEND_KEY, JSON.stringify(cfg));
+}
+
+let backend = loadBackend();
+
+async function api(path, { method='GET', body=null } = {}){
+  if(!backend?.url || !backend?.token) throw new Error('Backend não configurado');
+  const url = backend.url.replace(/\/$/, '') + path;
+  const headers = { 'Authorization': `Bearer ${backend.token}` };
+  if(body != null) headers['Content-Type'] = 'application/json';
+  const res = await fetch(url, { method, headers, body: body!=null ? JSON.stringify(body) : undefined });
+  if(!res.ok){
+    const txt = await res.text().catch(()=> '');
+    throw new Error(`API ${res.status}: ${txt || res.statusText}`);
+  }
+  return res.json();
+}
+
+async function health(){
+  if(!backend?.url) return false;
+  const url = backend.url.replace(/\/$/, '') + '/health';
+  const res = await fetch(url);
+  return res.ok;
+}
+
 
 const STATUS_COLUMNS = [
   { key: 'Backlog', label: 'Backlog' },
@@ -114,10 +146,13 @@ function loadState(){
 }
 
 function saveState(){
+  // Local mode only
+  if(backend?.url) return;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 function pushEvent({actor='SYSTEM', action='event', result='ok', message=''}){
+  // In backend mode we rely on server EventLog; keep a local echo only for UX.
   state.eventLog.unshift({ id: uid('evt'), at: nowIso(), actor, action, result, message });
   saveState();
   renderFeed();
@@ -133,11 +168,19 @@ const feedEl = document.getElementById('feed');
 const globalSearchEl = document.getElementById('globalSearch');
 const projectFilterEl = document.getElementById('projectFilter');
 const statusFilterEl = document.getElementById('statusFilter');
+const connectBtn = document.getElementById('connectBtn');
+const seedVivaBtn = document.getElementById('seedVivaBtn');
 const newMissionBtn = document.getElementById('newMissionBtn');
 const missionDialog = document.getElementById('missionDialog');
+const connectDialog = document.getElementById('connectDialog');
 const newMissionDialog = document.getElementById('newMissionDialog');
 
 // New mission form
+const connectForm = document.getElementById('connectForm');
+const beUrl = document.getElementById('beUrl');
+const beToken = document.getElementById('beToken');
+const beCancel = document.getElementById('beCancel');
+
 const nmForm = document.getElementById('newMissionForm');
 const nmProject = document.getElementById('nmProject');
 const nmTitle = document.getElementById('nmTitle');
@@ -554,14 +597,107 @@ function escapeAttr(str){
   return escapeHtml(str).replaceAll('`','&#096;');
 }
 
+async function reloadFromBackend(){
+  // Minimal backend sync for MVP: projects + missions + tasks + events.
+  const projects = await api('/api/projects');
+  const missions = await api('/api/missions');
+  const eventLog = await api('/api/events?limit=200');
+
+  // Attach tasks/approvals per mission
+  for(const m of missions){
+    try{
+      m.tasks = await api(`/api/missions/${m.id}/tasks`);
+    }catch{ m.tasks = []; }
+    try{
+      m.approvals = await api(`/api/missions/${m.id}/approvals`);
+    }catch{ m.approvals = []; }
+    m.links = m.links || [];
+    m.artifacts = m.artifacts || [];
+    m.checklist = m.checklist || [];
+  }
+
+  state = {
+    projects,
+    // agents are still local on MVP (backend endpoints can be added later)
+    agents: state.agents || seed().agents,
+    missions,
+    eventLog,
+  };
+
+  renderProjectFilters();
+  renderKanban();
+  renderAgents();
+  renderFeed();
+}
+
+function wireBackendUI(){
+  // Prefill dialog
+  beUrl.value = backend?.url || 'https://mission-control-api-irma.onrender.com';
+  beToken.value = backend?.token || '';
+
+  connectBtn.addEventListener('click', async () => {
+    beUrl.value = backend?.url || 'https://mission-control-api-irma.onrender.com';
+    beToken.value = backend?.token || '';
+    connectDialog.showModal();
+  });
+  beCancel.addEventListener('click', () => connectDialog.close());
+
+  connectForm.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const url = beUrl.value.trim().replace(/\/$/, '');
+    const token = beToken.value.trim();
+    backend = { url, token };
+    saveBackend(backend);
+
+    const ok = await health().catch(()=>false);
+    if(!ok){
+      alert('Backend não respondeu em /health. Confira a URL e se o serviço está Live.');
+      return;
+    }
+    connectDialog.close();
+    await reloadFromBackend().catch(e => alert(e.message));
+  });
+
+  seedVivaBtn.addEventListener('click', async () => {
+    if(!backend?.url || !backend?.token){
+      connectDialog.showModal();
+      return;
+    }
+    try{
+      await api('/api/seed/vivaplus', { method:'POST', body:{} });
+      await reloadFromBackend();
+      alert('Viva+ criado no backend.');
+    }catch(e){
+      alert(e.message);
+    }
+  });
+}
+
 // init
+wireBackendUI();
 renderProjectFilters();
 renderKanban();
 renderAgents();
 renderFeed();
 
+// backend auto-load
+(async () => {
+  if(backend?.url && backend?.token){
+    const ok = await health().catch(()=>false);
+    if(ok){
+      await reloadFromBackend().catch(()=>{});
+    }
+  }
+})();
+
 // light “real-time” feel
-setInterval(() => {
-  // update just the timestamps view in feed (cheap)
-  renderFeed();
+setInterval(async () => {
+  if(backend?.url && backend?.token){
+    try{
+      state.eventLog = await api('/api/events?limit=200');
+      renderFeed();
+    }catch{ /* ignore */ }
+  }else{
+    renderFeed();
+  }
 }, 15000);

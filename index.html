@@ -29,6 +29,8 @@
         <option value="Needs Approval">Needs Approval</option>
         <option value="Needs Info">Needs Info</option>
       </select>
+      <button id="connectBtn" class="btn">Conectar backend</button>
+      <button id="seedVivaBtn" class="btn">Seed Viva+</button>
       <button id="newMissionBtn" class="btn primary">+ Nova missão</button>
     </div>
   </header>
@@ -115,6 +117,36 @@
 
       <div class="dialog-f">
         <button value="cancel" class="btn">Fechar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="connectDialog" class="dialog">
+    <form id="connectForm" class="dialog-body">
+      <div class="dialog-h">
+        <div>
+          <div class="kicker">Backend</div>
+          <h3>Conectar ao Mission Control API</h3>
+          <div class="meta">As credenciais ficam salvas somente no seu navegador (LocalStorage).</div>
+        </div>
+        <button class="icon-btn" value="cancel" aria-label="Fechar">✕</button>
+      </div>
+
+      <div class="form-grid">
+        <label class="full">
+          <span>Backend URL</span>
+          <input id="beUrl" required placeholder="https://mission-control-api-irma.onrender.com" />
+        </label>
+        <label class="full">
+          <span>Auth Token (Bearer)</span>
+          <input id="beToken" required placeholder="Cole o MC_AUTH_TOKEN do Render" />
+        </label>
+        <div class="muted full">Dica: teste rápido em /health. O painel usa /api/* com Authorization: Bearer TOKEN.</div>
+      </div>
+
+      <div class="dialog-f">
+        <button class="btn" type="button" id="beCancel">Cancelar</button>
+        <button class="btn primary" type="submit">Salvar & conectar</button>
       </div>
     </form>
   </dialog>
